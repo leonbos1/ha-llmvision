@@ -17,6 +17,8 @@ CONF_OLLAMA_HTTPS = 'ollama_https'
 CONF_CUSTOM_OPENAI_ENDPOINT = 'custom_openai_endpoint'
 CONF_CUSTOM_OPENAI_API_KEY = 'custom_openai_api_key'
 CONF_RETENTION_TIME = 'retention_time'
+CONF_AZURE_AI_API_KEY = 'azure_ai_api_key'
+CONF_AZURE_AI_ENDPOINT = 'azure_ai_endpoint'
 
 # service call constants
 MESSAGE = 'message'
@@ -49,6 +51,7 @@ ERROR_OLLAMA_NOT_CONFIGURED = "Ollama is not configured"
 ERROR_CUSTOM_OPENAI_NOT_CONFIGURED = "Custom OpenAI provider is not configured"
 ERROR_NO_IMAGE_INPUT = "No image input provided"
 ERROR_HANDSHAKE_FAILED = "Connection could not be established"
+ERROR_AZURE_AI_NOT_CONFIGURED = "Azure AI is not configured"
 
 # Versions
 # https://docs.anthropic.com/en/api/versioning
@@ -61,3 +64,4 @@ ENDPOINT_GOOGLE = "https://generativelanguage.googleapis.com/v1beta/models/{mode
 ENDPOINT_GROQ = "https://api.groq.com/openai/v1/chat/completions"
 ENDPOINT_LOCALAI = "{protocol}://{ip_address}:{port}/v1/chat/completions"
 ENDPOINT_OLLAMA = "{protocol}://{ip_address}:{port}/api/chat"
+ENDPOINT_AZURE_AI = "{endpoint}"

@@ -31,7 +31,10 @@ from .const import (
     ERROR_GROQ_MULTIPLE_IMAGES,
     ERROR_LOCALAI_NOT_CONFIGURED,
     ERROR_OLLAMA_NOT_CONFIGURED,
-    ERROR_NO_IMAGE_INPUT
+    ERROR_NO_IMAGE_INPUT,
+    CONF_AZURE_AI_API_KEY,
+    CONF_AZURE_AI_ENDPOINT,
+    ERROR_AZURE_AI_NOT_CONFIGURED
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +75,8 @@ def get_provider(hass, provider_uid):
         return "Ollama"
     elif CONF_CUSTOM_OPENAI_API_KEY in entry_data:
         return "Custom OpenAI"
+    elif CONF_AZURE_AI_API_KEY in entry_data:
+        return "Azure"
 
     return None
 
@@ -83,7 +88,8 @@ def default_model(provider): return {
     "Groq": "llava-v1.5-7b-4096-preview",
     "LocalAI": "gpt-4-vision-preview",
     "Ollama": "llava-phi3:latest",
-    "Custom OpenAI": "gpt-4o-mini"
+    "Custom OpenAI": "gpt-4o-mini",
+    "Azure": "gpt-4o"
 }.get(provider, "gpt-4o-mini")  # Default value if provider is not found
 
 
@@ -113,7 +119,7 @@ class RequestHandler:
             self._validate_call(provider=provider,
                                 api_key=api_key,
                                 base64_images=self.base64_images)
-            response_text = await self.openai(model=model, api_key=api_key)
+            response_text = await self.openai(provider=provider, model=model, api_key=api_key)
         elif provider == 'Anthropic':
             api_key = self.hass.data.get(DOMAIN).get(
                 entry_id).get(CONF_ANTHROPIC_API_KEY)
@@ -181,7 +187,16 @@ class RequestHandler:
             self._validate_call(provider=provider,
                                 api_key=api_key,
                                 base64_images=self.base64_images)
-            response_text = await self.openai(model=model, api_key=api_key, endpoint=endpoint)
+            response_text = await self.openai(provider=provider, model=model, api_key=api_key, endpoint=endpoint)
+        elif provider == 'Azure':
+            api_key = self.hass.data.get(DOMAIN).get(
+                entry_id).get(CONF_AZURE_AI_API_KEY)
+            endpoint = self.hass.data.get(DOMAIN).get(
+                entry_id).get(CONF_AZURE_AI_ENDPOINT)
+            self._validate_call(provider=provider,
+                                api_key=api_key,
+                                base64_images=self.base64_images)
+            response_text = await self.openai(provider=provider, model=model, api_key=api_key, endpoint=endpoint)
         else:
             raise ServiceValidationError("invalid_provider")
         return {"response_text": response_text}
@@ -191,10 +206,16 @@ class RequestHandler:
         self.filenames.append(filename)
 
     # Request Handlers
-    async def openai(self, model, api_key, endpoint=ENDPOINT_OPENAI):
+    async def openai(self, provider, model, api_key, endpoint=ENDPOINT_OPENAI):
         # Set headers and payload
+        if provider == 'Azure':
+            headers = {'Content-type': 'application/json', 'api-key': api_key}
+        else:
+            headers = {'Content-type': 'application/json', 'Authorization': 'Bearer ' + api_key}
+
         headers = {'Content-type': 'application/json',
                    'Authorization': 'Bearer ' + api_key}
+        
         data = {"model": model,
                 "messages": [{"role": "user", "content": [
                 ]}],
@@ -473,6 +494,9 @@ class RequestHandler:
                 raise ServiceValidationError(ERROR_OLLAMA_NOT_CONFIGURED)
         elif provider == 'Custom OpenAI':
             pass
+        elif provider == 'Azure':
+            if not api_key:
+                raise ServiceValidationError(ERROR_AZURE_AI_NOT_CONFIGURED)
         else:
             raise ServiceValidationError(
                 "Invalid provider selected. The event calendar cannot be used for analysis.")

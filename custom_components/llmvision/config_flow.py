@@ -19,6 +19,8 @@ from .const import (
     CONF_CUSTOM_OPENAI_ENDPOINT,
     VERSION_ANTHROPIC,
     CONF_RETENTION_TIME,
+    CONF_AZURE_AI_API_KEY,
+    CONF_AZURE_AI_ENDPOINT
 )
 import voluptuous as vol
 import logging
@@ -223,6 +225,7 @@ class llmvisionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             "Ollama": self.async_step_ollama,
             "LocalAI": self.async_step_localai,
             "Custom OpenAI": self.async_step_custom_openai,
+            "Azure AI": self.async_step_azure_ai
         }
 
         step_method = provider_steps.get(provider)
@@ -236,7 +239,7 @@ class llmvisionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema({
             vol.Required("provider", default="Event Calendar"): selector({
                 "select": {
-                    "options": ["Event Calendar", "OpenAI", "Anthropic", "Google", "Groq", "Ollama", "LocalAI", "Custom OpenAI"],
+                    "options": ["Event Calendar", "OpenAI", "Anthropic", "Google", "Groq", "Ollama", "LocalAI", "Custom OpenAI", "Azure AI"],
                     "mode": "dropdown",
                     "sort": False,
                     "custom_value": False
@@ -446,6 +449,61 @@ class llmvisionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="custom_openai",
             data_schema=data_schema,
         )
+
+    async def async_step_azure_ai(self, user_input=None):
+        data_schema = vol.Schema({
+            vol.Required(CONF_AZURE_AI_ENDPOINT): str,
+            vol.Required(CONF_AZURE_AI_API_KEY): str,
+        })
+
+        if user_input is not None:
+            user_input["provider"] = self.init_info["provider"]
+            validator = Validator(self.hass, user_input)
+            try:
+                await validator.azure_ai()
+                return self.async_create_entry(title="Azure AI", data=user_input)
+            except ServiceValidationError as e:
+                _LOGGER.error(f"Validation failed: {e}")
+                return self.async_show_form(
+                    step_id="azure_ai",
+                    data_schema=data_schema,
+                    errors={"base": "handshake_failed"}
+                )
+
+        return self.async_show_form(
+            step_id="azure_ai",
+            data_schema=data_schema,
+        )
+
+    async def azure_ai(self):
+        self._validate_provider()
+        api_key = self.user_input.get(CONF_AZURE_AI_API_KEY)
+        endpoint_url = self.user_input.get(CONF_AZURE_AI_ENDPOINT)
+        if not api_key:
+            _LOGGER.error("API key is missing for Azure AI.")
+            raise ServiceValidationError("empty_api_key")
+        if not endpoint_url:
+            _LOGGER.error("Endpoint URL is missing for Azure AI.")
+            raise ServiceValidationError("empty_endpoint")
+        try:
+            url_parsed = urllib.parse.urlparse(endpoint_url)
+            protocol = url_parsed.scheme
+            base_url = url_parsed.hostname
+            port = ":" + str(url_parsed.port) if url_parsed.port else ""
+            path = url_parsed.path if url_parsed.path else ""
+            endpoint = path + "/openai/deployments?api-version=2023-05-15"
+            header = {
+                'Content-type': 'application/json',
+                'api-key': api_key
+            }
+            payload = {}
+            method = "GET"
+            if not await self._handshake(base_url=base_url, endpoint=endpoint, protocol=protocol, port=port, header=header, payload=payload, expected_status=200, method=method):
+                _LOGGER.error("Could not connect to Azure AI server.")
+                raise ServiceValidationError("handshake_failed")
+        except Exception as e:
+            _LOGGER.error(f"Could not parse endpoint: {e}")
+            raise ServiceValidationError("endpoint_parse_failed")
 
     async def async_step_semantic_index(self, user_input=None):
         data_schema = vol.Schema({
