@@ -1,7 +1,7 @@
 """ Constants for llmvision component"""
 
 # Global constants
-DOMAIN = "llmvision"
+DOMAIN = "llmvisionazure"
 
 # Configuration values from setup
 CONF_OPENAI_API_KEY = 'openai_api_key'

@@ -1,5 +1,5 @@
 {
-    "domain": "llmvision",
+    "domain": "llmvisionazure",
     "name": "LLM Vision Azure",
     "codeowners": ["@valentinfrlch", "@leonbos1"],
     "config_flow": true,
